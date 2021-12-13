@@ -1,8 +1,14 @@
 from tensorflow import keras
 import numpy as np
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import average_precision_score
+from sklearn.metrics import ndcg_score
+import tensorflow as tf
+import ml_metrics
 
-split = 9
+split = 48
+movies = 17770
+# movies = 3952
 
 class GAN():
     # Build and test generator
@@ -10,13 +16,11 @@ class GAN():
 
         model = keras.models.Sequential()
         # TanH instead of ReLu for GPU performance
-        model.add(keras.layers.LSTM(256, activation='tanh', recurrent_activation='sigmoid', input_shape=(split,3952,)))
-        model.add(keras.layers.Dense(512, activation='relu'))
-        model.add(keras.layers.Dense(1024, activation='relu'))
-        model.add(keras.layers.Dense(1*3952, activation='relu'))
-        model.add(keras.layers.Reshape((1,3952)))
+        model.add(keras.layers.GRU(1000, activation='relu', recurrent_activation='sigmoid', input_shape=(split,movies,)))
+        model.add(keras.layers.Dense(movies, activation='tanh'))
+        model.add(keras.layers.Reshape((1,movies)))
 
-        noise = keras.layers.Input(shape=(split,3952,))
+        noise = keras.layers.Input(shape=(split,movies,))
         seq = model(noise)
 
         return keras.models.Model(noise, seq)
@@ -26,15 +30,21 @@ class GAN():
 
         model = keras.models.Sequential()
          # TanH instead of ReLu for GPU performance
-        model.add(keras.layers.LSTM(256, activation='tanh', recurrent_activation='sigmoid', input_shape=(1,3952,)))
-        model.add(keras.layers.Dense(1024, activation='relu'))
-        model.add(keras.layers.Dense(512, activation='relu'))
+        model.add(keras.layers.GRU(1000, activation='relu', recurrent_activation='sigmoid', input_shape=(1,movies,)))
         model.add(keras.layers.Dense(1, activation='sigmoid'))
 
-        seq = keras.layers.Input(shape=(1,3952))
+        seq = keras.layers.Input(shape=(1,movies))
         validity = model(seq)
 
         return keras.models.Model(seq, validity)
+    
+    def load(self):
+        self.discriminator = keras.models.load_model("discriminator.h5")
+        self.generator = keras.models.load_model("generator.h5")
+        self.combined = keras.models.load_model("combined.h5")
+    
+    def load_generator(self):
+        self.generator = keras.models.load_model("generator.h5")
     
     def __init__(self):
         optimizer = keras.optimizers.Adam(0.0002, 0.5)
@@ -47,7 +57,7 @@ class GAN():
         self.generator = self.generator()
 
         # generator generates sequence
-        z = keras.layers.Input(shape=(split,3952,))
+        z = keras.layers.Input(shape=(split,movies,))
         gen_seqs = self.generator(z)
 
         # For the combined model we will only train the generator
@@ -104,23 +114,18 @@ class GAN():
                 print ("%d [D loss: %f, acc: %.2f%%] [G loss: %f, mse: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss[0], g_loss[1]))
             
         print("Saving...")
-        self.generator.save("model.h5")
+        self.generator.save("generator.h5")
+        self.discriminator.save("discriminator.h5")
+        self.combined.save("combined.h5")
         print("Saved.")
 
     def validate(self, data):
-        model = keras.models.load_model("model.h5")
-
         x = data[:,:split,:]
-        y = data[:,split:,:]
+        y = data[:,split:,:].reshape(200, 17770)
 
-        total = 0
-        for user in range(len(y)):
-            y_real = y[user][0]
+        y_fake = np.array(self.generator(x)).reshape(200, 17770)
 
-            y_fake = model(x[user].reshape(1, x[user].shape[0], x[user].shape[1]))
-            y_fake = np.array(y_fake)[0][0]
+        x = []
 
-            total += mean_squared_error(y_real, y_fake)
-
-        total /= len(y)
-        print("mean mse:", total)
+        ndcg = ndcg_score(y, y_fake, k=3)
+        return ndcg
