@@ -123,7 +123,7 @@ if __name__ == '__main__':
     # Build GAN model
     gan = GAN()
 
-    train = False
+    train = True
     validate = True
 
     # Generate full dataset for training
