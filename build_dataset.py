@@ -66,7 +66,7 @@ def netflix_dataset(index, step):
 
 # User total: 480.189, arredondando para 480.000
 def main():
-    for i in range(288,480):
+    for i in range(0,480):
         print(str((i/480)*100)+'%')
         ds = netflix_dataset(i, 1000)
         ds = sparse.COO.from_numpy(ds)
