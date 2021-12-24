@@ -123,8 +123,8 @@ if __name__ == '__main__':
     # Build GAN model
     gan = GAN()
 
-    train = True
-    validate = False
+    train = False
+    validate = True
 
     # Generate full dataset for training
     # data = generate_dataset("ratings.dat")
@@ -136,9 +136,9 @@ if __name__ == '__main__':
     steps = training_size // step_size
 
     if train:
-        gan.load()
+        # gan.load()
         # 39
-        for i in range(287,steps):
+        for i in range(steps):
             print(i,"/",steps,"(", str(math.floor((i/steps)*10000)/100)+"%",")")
             # data = netflix_dataset(i, step_size)
             data = sparse.load_npz("dataset/netflix_revised/"+str(i)+".npz")
@@ -147,12 +147,15 @@ if __name__ == '__main__':
             # Log sanity check
             # print("shape:", data.shape)
 
+            if i%50 == 0:
+                gan.save()
+
             gan.train(100, data, batch_size=5, sample_interval=50)
 
     if validate:
         validation = []
         gan.load_generator()
-        for i in range(steps,480):
+        for i in range(0,20):
             print(i,"/",480)
             # data = netflix_dataset(i, step_size)
             data = sparse.load_npz("dataset/netflix_revised/"+str(i)+".npz")
@@ -161,9 +164,11 @@ if __name__ == '__main__':
                 validation.append(gan.validate(data[i*200:(i+1)*200]))
         
         with open("validation.txt", "wb") as fp:
-            pickle.dump(validation, fp)
+             pickle.dump(validation, fp)
 
         with open("validation.txt", "rb") as fp:
             a = pickle.load(fp)
         
-        print(a)
+        a = np.array(a)
+        print(np.mean(a))
+        print(np.median(a))

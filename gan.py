@@ -46,6 +46,13 @@ class GAN():
     def load_generator(self):
         self.generator = keras.models.load_model("generator.h5")
     
+    def save(self):
+        print("Saving...")
+        self.generator.save("generator.h5")
+        self.discriminator.save("discriminator.h5")
+        self.combined.save("combined.h5")
+        print("Saved.")
+    
     def __init__(self):
         optimizer = keras.optimizers.Adam(0.0002, 0.5)
 
@@ -112,12 +119,6 @@ class GAN():
             # Intervel of epochs for logging
             if epoch % sample_interval == 0:
                 print ("%d [D loss: %f, acc: %.2f%%] [G loss: %f, mse: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss[0], g_loss[1]))
-            
-        print("Saving...")
-        self.generator.save("generator.h5")
-        self.discriminator.save("discriminator.h5")
-        self.combined.save("combined.h5")
-        print("Saved.")
 
     def validate(self, data):
         x = data[:,:split,:]
